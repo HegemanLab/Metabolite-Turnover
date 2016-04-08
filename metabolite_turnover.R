@@ -13,7 +13,12 @@ library(ProteinTurnover)
 library(xcms)
 
 # If needed, this sets the wd to where your data is located
-setwd("C:/Users/Lab/Desktop/Coding_Bits/Turnover/data")
+input_path <- "C:/Users/Lab/Desktop/Coding_Bits/Turnover/data"
+
+# Where you want the files to go
+output_path <- "C:/Users/Lab/Desktop/"
+
+setwd(input_path)
 
 # Generate files list in same folder as data by navagating to that folder and entering the following command in the command prompt:
 # dir *.mzXML /b > files.txt
@@ -58,6 +63,7 @@ setup_mzs <- function(x){
 # Gets input from template
 inputValues <- read.csv("input_template.csv", stringsAsFactors = FALSE)
 
+
 # Gets names of mzXML files that will be analyzed
 fileList <- read.table("files.txt", header = FALSE, stringsAsFactors = FALSE) 
 
@@ -97,8 +103,16 @@ finalOut <- lapply(fileList$V1, function(f){
       reg <- lm(labeled$intensity ~ base$intensity) ## will need to do some pretty labeling if we want these plots
       regSlope <- reg$coefficients[[2]]
       rSquared <- summary(reg)$r.squared
-      ### this is where I could build in an if to generate a plot... if I had one!
       
+      ### this is where I could build in an if to generate a plot... if I had one!
+      setwd(output_path)
+
+      pdf(paste(substr(f, 1, nchar(f)-6), as.character(base[record, "name"]), "vs", as.character(labeled[record, "name"]), ".pdf", sep = ""))
+      plot(base$intensity, labeled$intensity, xlab =  as.character(base[record, "name"]), ylab = as.character(labeled[record, "name"]), main = "Unlabeled vs Labeled")
+      abline(reg)
+      dev.off()
+      
+      setwd(input_path)
       ###
       fileOutput <- rbind(fileOutput, data.frame(f, base$name[[1]], labeled$name[[1]], rSquared, regSlope))
     }
@@ -107,9 +121,15 @@ finalOut <- lapply(fileList$V1, function(f){
   colnames(fileOutput) <- c("file_name", "base", "label", "r2", "slope")
   fileOutput
 })
+
+
+setwd(output_path)
+
+
 for(i in finalOut){
-  print(i)
-  write.csv(i, file = "test.csv")
+  file_name <- as.character(i[1, "file_name"])
+  print(file_name)
+  write.csv(i, file = paste(substr(file_name, 1, nchar(file_name) - 6), ".csv", sep = ""), row.names = FALSE)
 }
 
 
