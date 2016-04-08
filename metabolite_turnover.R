@@ -1,3 +1,6 @@
+######### START ON LINE 72 ######################### - also need to add comments and save to git
+
+
 ## load packages, need to be installed first (but only once)
 ## to install isotopelabeling
 ## for xcms see
@@ -12,36 +15,112 @@ library(xcms)
 # If needed, this sets the wd to where your data is located
 setwd("C:/Users/Lab/Desktop/Coding_Bits/Turnover/data")
 
-# Gets input from template
-inputValues <- read.csv("input_template.csv")
-
 # Generate files list in same folder as data by navagating to that folder and entering the following command in the command prompt:
 # dir *.mzXML /b > files.txt
 
+# Needed function that does the official reading in of eic data.
+# NOTE mz is a list of mzs
+readEIC <- function(file, mz, mz.tol, rt) {
+  # Create raw object
+  xraw <- xcmsRaw(file)
+  
+  # For each mz make a raw EIC and return that list.
+  eic <- lapply(mz, function(x){
+    rawEIC(xraw, mzrange = c(x - mz.tol, x + mz.tol), rtrange = rt)
+  })
+  
+  dat <- do.call(rbind, lapply(seq_along(eic), function(idx) { # Assigns indices to eic data
+    out <- data.frame(eic[[idx]])
+    out$channel <- idx
+    out
+  }))
+  
+  # adds in names 
+  #dat$name <- factor(names(mz)[dat$channel], levels=names(mz)) #### Commented this out so it would run. Could try to tack on names somewhere
+  structure(dat, class=c("EIC", class(dat)))
+}
+
+## doublecheck order for rt
+setup_mzs <- function(x){
+  name <- x[["name"]]
+  mz <- x[["mz"]]
+  i <- 6
+  for(iso in 1:as.integer(x[["number.of.labels"]])){
+    name <- c(name, x[[i]])
+    mz <- c(mz, x[[i+1]])
+    i <- i + 1
+  }
+  out <- as.data.frame(name, stringsAsFactors = FALSE)
+  out$mz <- mz
+  out
+}
+
+# Gets input from template
+inputValues <- read.csv("input_template.csv", stringsAsFactors = FALSE)
+
 # Gets names of mzXML files that will be analyzed
-fileList <- read.table("files.txt", header = FALSE) 
+fileList <- read.table("files.txt", header = FALSE, stringsAsFactors = FALSE) 
 
-# reformats data as dataframe with each amino name as the row identifier
-values <- as.data.frame(inputValues)
-values <- values[,-1]
-rownames(values) <- input[,1]
-
+# readEIC input data setup
+#### Keep this constant for all analysis?
+mz.tol <- .005
 
 
-############## START HERE. Figure out how to duplicate data read in from new template. Then just need to develop loop and add code for saving output.
-# Will need to figure out how to read in names (if needed) from CVS. Should just have to use them as col names
-mz <- c("normal" = 90.0550, "isotope" = 91.0520)
+finalOut <- lapply(fileList$V1, function(f){
+  fileOutput <- data.frame()
+  for(record in 1:length(inputValues[, 1])){
+    n_mz <- setup_mzs(inputValues[record, ])
+    
+    rt.max <- inputValues[record, "rt.max"]
+    rt.min <- inputValues[record, "rt.min"]
+    rt <- c(rt.min, rt.max)*60
+    out <- readEIC(f, n_mz[["mz"]], mz.tol, rt) 
+    
+    ### ugly way to assign names. May be best to look into new way of doing this but works for now
+    for(j in 1:length(out$scan)){
+      if(out[j,"channel"] == 1){
+        out$name[j] <- inputValues[record, "name"]
+      }
+      else{
+        out$name[j] <- inputValues[record, (2 + 2*out$channel[j])]
+      }
+    }
+
+    # gets base amino values (non labeled)
+    b <- out$channel== 1
+    base <- out[b, ]
+
+    # Loop through for non bases
+    for(c in 2:max(out$channel)){
+      channelMatch <- out$channel == c
+      labeled <- out[channelMatch, ]
+      reg <- lm(labeled$intensity ~ base$intensity) ## will need to do some pretty labeling if we want these plots
+      regSlope <- reg$coefficients[[2]]
+      rSquared <- summary(reg)$r.squared
+      ### this is where I could build in an if to generate a plot... if I had one!
+      
+      ###
+      fileOutput <- rbind(fileOutput, data.frame(f, base$name[[1]], labeled$name[[1]], rSquared, regSlope))
+    }
+    
+  }
+  colnames(fileOutput) <- c("file_name", "base", "label", "r2", "slope")
+  fileOutput
+})
+for(i in finalOut){
+  print(i)
+  write.csv(i, file = "test.csv")
+}
 
 
 # Sets up input data. This will eventually be read in from a csv to make it much smoother and automated. 
 mz.tol <- .005
-rt <- c(5.10, 5.55)*60 
-rt.min <- rep(5.10, length(mz))*60
-rt.max <- rep(5.55, length(mz))*60
+rt <- c(5.05, 5.37)*60 
 mz.min <- mz - mz.tol
 mz.max <- mz + mz.tol
-
-tester_raw <- xcmsRaw(file)
+file <- "DW_Dried-pos.mzXML"
+# tol and rt window determined empirically. Currently generating R2 of .927 for Dried file.
+# but only .6732 for Fresh
 
 out <- readEIC(file, mz, mz.tol, rt)
 
@@ -54,9 +133,6 @@ plot(A_i, AN_i)
 reg <- lm(AN_i ~ A_i)
 regSlope <- reg$coefficients[[2]]
 abline(reg)
-summary(reg)
-regSummary <- summary(reg)
-rSquared <- regSummary$r.squared
 
 
 
@@ -75,27 +151,7 @@ show(a_eic)
 args(plotEIC)
 
 
-# NOTE mz is a list of mzs
-readEIC <- function(file, mz, mz.tol, rt) {
-  # Create raw object
-  xraw <- xcmsRaw(file)
-  
-  # For each mz make a raw EIC and return that list.
-  eic <- lapply(mz, function(x){
-    rawEIC(xraw, mzrange = c(x - mz.tol, x + mz.tol), rtrange = rt)
-  })
-  
-  dat <- do.call(rbind, lapply(seq_along(eic), function(idx) { # Assigns indices to eic data
-    out <- data.frame(eic[[idx]])
-    out$channel <- idx
-    out
-  }))
-  
-  # adds in names 
-  dat$name <- factor(names(mz)[dat$channel], levels=names(mz)) 
-  structure(dat, class=c("EIC", class(dat)))
-  
-}
+
 
 
 
