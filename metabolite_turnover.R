@@ -1,6 +1,3 @@
-######### START ON LINE 72 ######################### - also need to add comments and save to git
-
-
 ## load packages, need to be installed first (but only once)
 ## to install isotopelabeling
 ## for xcms see
@@ -25,6 +22,8 @@ setwd(input_path)
 
 # Needed function that does the official reading in of eic data.
 # NOTE mz is a list of mzs
+file <- "DW_Fresh-pos.mzXML"
+
 readEIC <- function(file, mz, mz.tol, rt) {
   # Create raw object
   xraw <- xcmsRaw(file)
@@ -42,7 +41,12 @@ readEIC <- function(file, mz, mz.tol, rt) {
   
   # adds in names 
   #dat$name <- factor(names(mz)[dat$channel], levels=names(mz)) #### Commented this out so it would run. Could try to tack on names somewhere
-  structure(dat, class=c("EIC", class(dat)))
+  
+  # Option to return if we need the base peak intensity
+  c(xraw@env$intensity, structure(dat, class=c("EIC", class(dat)))) 
+  
+  # Option if base peak not needed for calculation
+  # structure(dat, class=c("EIC", class(dat)))
 }
 
 ## doublecheck order for rt
@@ -65,22 +69,27 @@ inputValues <- read.csv("input_template.csv", stringsAsFactors = FALSE)
 
 
 # Gets names of mzXML files that will be analyzed
-fileList <- read.table("files.txt", header = FALSE, stringsAsFactors = FALSE) 
+fileInfo <- read.csv("files_template.csv", header = TRUE, stringsAsFactors = FALSE) 
+fileList <- fileInfo$File
 
 # readEIC input data setup
 #### Keep this constant for all analysis?
 mz.tol <- .005
 
 
-finalOut <- lapply(fileList$V1, function(f){
+finalOut <- lapply(fileList, function(f){
   fileOutput <- data.frame()
   for(record in 1:length(inputValues[, 1])){
     n_mz <- setup_mzs(inputValues[record, ])
-    
     rt.max <- inputValues[record, "rt.max"]
     rt.min <- inputValues[record, "rt.min"]
+    
+    browser()
+    
     rt <- c(rt.min, rt.max)*60
     out <- readEIC(f, n_mz[["mz"]], mz.tol, rt) 
+    
+    # relAb <- relAbFromCounts(out$intensity, out$channel, out$scan, norm_channel=1)
     
     ### ugly way to assign names. May be best to look into new way of doing this but works for now
     for(j in 1:length(out$scan)){
