@@ -10,16 +10,17 @@ library(ProteinTurnover)
 library(xcms)
 
 # If needed, this sets the wd to where your data is located
-input_path <- "C:/Users/Lab/Desktop/Coding_Bits/Turnover/data"
+# Note: if path copied from windows all \ characters will need to be switched to / characters. Use ctrl+f and replace to do this quickly for long file pathes.
+inputPath <- "C:/Users/Hegeman Lab/Desktop/Data/TO_general_data"
 
 # Where you want the files to go
-output_path <- "C:/Users/Lab/Desktop/"
+outputPath <- "C:/Users/Lab/Desktop/ouput/TimeSeries"
 
-setwd(input_path)
+setwd(inputPath)
 
 # Needed function that does the official reading in of eic data.
 # NOTE mz is a list of mzs
-readEIC <- function(file, mz, mz.tol, rt) {
+read_EIC <- function(file, mz, mz.tol, rt) {
   # Create raw object
   xraw <- xcmsRaw(file)
   
@@ -60,8 +61,8 @@ setup_mzs <- function(x){
 }
 
 # Gets input from template
-inputValues <- read.csv("input_template.csv", stringsAsFactors = FALSE)
-filesInput <- "files_template.csv"
+inputValues <- read.csv("input_template.csv", stringsAsFactors = FALSE)  # Currently all aminos minus the two that didn't have retention times. 
+filesInput <- "files_template.csv" # Currently subset of time series data
 
 # Gets names of mzXML files that will be analyzed
 setup_files <- function(input_csv_filename){
@@ -76,7 +77,9 @@ setup_files <- function(input_csv_filename){
 fileList <- setup_files(filesInput)
 
 # Function for generating output tables and graphs
-generateOutput <- function(fileList){
+generate_output <- function(fileList){
+  
+  outData <- data.frame()
   
   for(record in 1:length(inputValues[, 1])){
     # Unpack data from input
@@ -99,6 +102,9 @@ generateOutput <- function(fileList){
     
     for(j in 1:length(fi)){
       
+      # for debugging only, remove once debugged
+      setsj <- sets[j]
+      
       #### Note: This implementation means that sets must be grouped together when read in. ie all data from set one must be together in consecutive rows in csv.
       if(sets[j] != current_set){
         # Generate plots and csv readouts of  here
@@ -106,10 +112,13 @@ generateOutput <- function(fileList){
         browser()
         
         # check if current set == -1 or if set_data == null or something
-        #write_amino_tables(set_data)
-        #plot_time-series(set_data)
+        # write_amino_tables(outData) <<< Still need to write this but currently outputting basically all the data needed to do this. Should probably do it after plotting timeseries though because the time series can be used to generate and save the plots and regression numbers.  
+        if (!is.null(set_data)){
+          outData <- rbind(outData, set_data)
+        }
         
-        browser()
+        
+        #plot_time-series(set_data)
         
         current_set = sets[j]
         set_data <- data.frame()
@@ -117,11 +126,15 @@ generateOutput <- function(fileList){
       
       ## This cunction will likely be slow because it will recreate all the xcmsraws. May be a way to do this once as a set up step then just find the correct xraw in a table or something (dynamic programming ish)
       # Get EIC data for input into relAbFromCounts function
-      out <- readEIC(fi[j], n_mz[["mz"]], mz.tol, rt) 
+      out <- read_EIC(fi[j], n_mz[["mz"]], mz.tol, rt) 
       
       # Gets relative abundance data and appends a time value to it
       relAb <- relAbFromCounts(out$intensity, out$channel, out$scan, norm_channel=1)
       relAb.data <- relAb$data.long
+     
+      # only for debugging, remove later
+      timej <- times[j]
+      
       relAb.data$time <- rep(times[j], length(relAb.data[,1]))
       
       ### ugly way to assign names. May be best to look into new way of doing this but works for now
@@ -134,90 +147,20 @@ generateOutput <- function(fileList){
         }
       }
       
-      browser()
+      relAb.data$fileName <- rep(fi[j], length(relAb.data[,1]))
       
       # bind the data from each time together
       set_data <- rbind(set_data, relAb.data)
       
     }
   }
-  
- 
-  
-  
-  
-#   
-#   finalOut <- lapply(fi, function(f){
-#     fileOutput <- data.frame()
-#     for(record in 1:length(inputValues[, 1])){
-#       
-#       # Gets mz values and sets up needed variables.
-#       n_mz <- setup_mzs(inputValues[record, ])
-#       rt.max <- inputValues[record, "rt.max"]
-#       rt.min <- inputValues[record, "rt.min"]
-#       
-#       # RT window to seconds
-#       rt <- c(rt.min, rt.max)*60
-#       
-#       browser()
-#       
-#       ########### Do this loop for each time in each set (nested)
-#       
-#       
-#       # pulls out values needed for relAb from each file
-#       out <- readEIC(f, n_mz[["mz"]], mz.tol, rt) 
-# 
-#       relAb <- relAbFromCounts(out$intensity, out$channel, out$scan, norm_channel=1)
-#       relAb.data <- relAb$data.long
-#       relAb.data$time <- rep(times[1], length(relAb.data[,1]))
-#       
-#       
-#       ### ugly way to assign names. May be best to look into new way of doing this but works for now
-#       for(j in 1:length(out$scan)){
-#         if(out[j,"channel"] == 1){
-#           out$name[j] <- inputValues[record, "name"]
-#         }
-#         else{
-#           out$name[j] <- inputValues[record, (2 + 2*out$channel[j])]
-#         }
-#       }
-#       
-#       # gets base amino values (non labeled)
-#       b <- out$channel== 1
-#       base <- out[b, ]
-#       
-#       # Loop through for non bases
-#       for(c in 2:max(out$channel)){
-#         channelMatch <- out$channel == c
-#         labeled <- out[channelMatch, ]
-#         reg <- lm(labeled$intensity ~ base$intensity) ## will need to do some pretty labeling if we want these plots
-#         regSlope <- reg$coefficients[[2]]
-#         rSquared <- summary(reg)$r.squared
-#         
-#         ### this is where I could build in an if to generate a plot... if I had one!
-#         setwd(output_path)
-#         
-#         pdf(paste(substr(f, 1, nchar(f)-6), as.character(base[record, "name"]), "vs", as.character(labeled[record, "name"]), ".pdf", sep = ""))
-#         plot(base$intensity, labeled$intensity, xlab =  as.character(base[record, "name"]), ylab = as.character(labeled[record, "name"]), main = "Unlabeled vs Labeled")
-#         abline(reg)
-#         dev.off()
-#         
-#         setwd(input_path)
-#         ###
-#         fileOutput <- rbind(fileOutput, data.frame(f, base$name[[1]], labeled$name[[1]], rSquared, regSlope))
-#       }
-#       
-#     }
-#     colnames(fileOutput) <- c("file_name", "base", "label", "r2", "slope")
-#     fileOutput
-#   })
 }
 
-# Tables stored in out. Graphics generated within the generateOutput script and also sent to output_path location.
-out <- generateOutput(fileList)
+# Tables stored in out. Graphics generated within the generate_output script and also sent to outputPath location.
+out <- generate_output(fileList)
 
 # Send output to the correct place
-setwd(output_path)
+setwd(outputPath)
 
 # Generate output
 for(i in out){
