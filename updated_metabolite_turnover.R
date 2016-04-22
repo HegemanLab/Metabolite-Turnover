@@ -5,9 +5,15 @@
 
 # Package set up if needed. Note ProteinTurnover requires R 3.2 to be installed
 # install.packages("ProteinTurnover", repos="http://www.stat.umn.edu/~rend0020/repos")
+# install.packages("spatstat")
 
 library(ProteinTurnover)
 library(xcms)
+library(spatstat)
+library(lattice)
+
+source("http://bioconductor.org/biocLite.R")
+biocLite("xcms")  
 
 # If needed, this sets the wd to where your data is located
 # Note: if path copied from windows all \ characters will need to be switched to / characters. Use ctrl+f and replace to do this quickly for long file pathes.
@@ -96,6 +102,7 @@ generate_output <- function(fileList){
     label <- inputValues[record, "label"]
     name <- inputValues[record, "name"]
     mz.tol <- inputValues[record, "mz.tol"]
+    set_data <- data.frame()
     
     # RT window to seconds
     rt <- c(rt.min, rt.max)*60
@@ -109,13 +116,32 @@ generate_output <- function(fileList){
       if(sets[j] != current_set){
         # Generate plots and csv readouts of  here
         
-        browser()
+        
         
         # check if current set == -1 or if set_data == null or something
         # write_amino_tables(outData) <<< Still need to write this but currently outputting basically all the data needed to do this. Should probably do it after plotting timeseries though because the time series can be used to generate and save the plots and regression numbers.  
-        if (!is.null(set_data)){
+        if (!is.empty(set_data)){
           outData <- rbind(outData, set_data)
+          
+          browser()
+          
+          x <- relAbForTimes(set_data$Count, set_data$Channel, set_data$RT, set_data$time)
+          x$data.long$f1 <- factor(x$data.long$TimePoint, labels = unique(x$data.long$TimePoint)) 
+          x$data.long$f2 <- factor(x$data.long$Channel, labels = unique(x$data.long$Channel))
+          
+          # Kinda the EIC plots... plot(x$data.long$RT, x$data.long$Count)
+          
+          panel.lines <- function(x, y) {
+            panel.xyplot(x, y) # show points 
+            panel.lmline(x, y)  # show smoothed line 
+            
+          }
+          # eventually add in xlab.top, ylab.right
+          
+          xyplot(data.long$Count ~ data.long$BaseCount | data.long$f2 * data.long$f1, as.table = TRUE, strips = TRUE, data = x, panel = panel.lines, scales=list(alternating=0), main = "Time Series Regressions", xlab = "Relative Abundance", ylab = "Labeling Time")
         }
+        
+        
         
         
         #plot_time-series(set_data)
