@@ -20,7 +20,7 @@ biocLite("xcms")
 inputPath <- "C:/Users/Hegeman Lab/Desktop/Data/TO_general_data"
 
 # Where you want the files to go
-outputPath <- "C:/Users/Lab/Desktop/ouput/TimeSeries"
+outputPath <- "C:/Users/Hegeman Lab/Desktop/Output/TimeSeries"
 
 setwd(inputPath)
 
@@ -122,12 +122,14 @@ generate_output <- function(fileList){
         # write_amino_tables(outData) <<< Still need to write this but currently outputting basically all the data needed to do this. Should probably do it after plotting timeseries though because the time series can be used to generate and save the plots and regression numbers.  
         if (!is.empty(set_data)){
           outData <- rbind(outData, set_data)
-          
-          browser()
+
           
           x <- relAbForTimes(set_data$Count, set_data$Channel, set_data$RT, set_data$time)
           x$data.long$f1 <- factor(x$data.long$TimePoint, labels = unique(x$data.long$TimePoint)) 
           x$data.long$f2 <- factor(x$data.long$Channel, labels = unique(x$data.long$Channel))
+          
+          set_data$f1 <- factor(set_data$time, labels = unique(set_data$time))
+          set_data$f2 <- factor(set_data$Channel, labels = unique(set_data$Channel))
           
           # Kinda the EIC plots... plot(x$data.long$RT, x$data.long$Count)
           
@@ -136,9 +138,21 @@ generate_output <- function(fileList){
             panel.lmline(x, y)  # show smoothed line 
             
           }
-          # eventually add in xlab.top, ylab.right
+          # eventually add in xlab.top, ylab.right. Look at panel labels or strip labels for formatting. 
           
-          xyplot(data.long$Count ~ data.long$BaseCount | data.long$f2 * data.long$f1, as.table = TRUE, strips = TRUE, data = x, panel = panel.lines, scales=list(alternating=0), main = "Time Series Regressions", xlab = "Relative Abundance", ylab = "Labeling Time")
+          setwd(outputPath)
+          
+          trellis.device(device = "pdf", file = paste0(set_data$name[1], "-", set_data$fileName[1],"-regression.pdf"))
+          print(xyplot(data.long$Count ~ data.long$BaseCount | data.long$f2 * data.long$f1, as.table = TRUE, strips = TRUE, data = x, panel = panel.lines, scales=list(alternating=0), main = "Time Series Regressions", xlab = "Relative Abundance", ylab = "Labeling Time"))
+          dev.off()
+          
+          trellis.device(device = "pdf", file = paste0(set_data$name[1], "-", set_data$fileName[1],"-eic.pdf"))
+          print(xyplot(data.long$Count ~ data.long$RT | data.long$f2 * data.long$f1, as.table = TRUE, strips = TRUE, data = x, scales=list(alternating=0), main = "EIC Plot", xlab = "RT", ylab = "Labeling Time"))
+          dev.off()
+          
+          setwd(inputPath)
+          # Seems to generate same plot. First one is coming out a bit wonky.
+          # xyplot(Count ~ RT | f2 * f1, as.table = TRUE, strips = TRUE, data = set_data, scales=list(alternating=0), main = "EIC Plot", xlab = "RT", ylab = "Labeling Time")
         }
         
         
@@ -183,6 +197,8 @@ generate_output <- function(fileList){
 }
 
 # Tables stored in out. Graphics generated within the generate_output script and also sent to outputPath location.
+setwd(inputPath)
+
 out <- generate_output(fileList)
 
 # Send output to the correct place
