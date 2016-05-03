@@ -16,6 +16,7 @@ library(ProteinTurnover)
 library(xcms)
 library(spatstat)
 library(lattice)
+library(latticeExtra)
 
 
 
@@ -178,6 +179,8 @@ generate_output <- function(fileList){
           x$data.long$f1 <- factor(x$data.long$TimePoint, labels = unique(x$data.long$TimePoint)) 
           x$data.long$f2 <- factor(x$data.long$Channel, labels = unique(x$data.long$Channel))
           
+          browser()
+          
           # Sets up pannel for graphing a linear regression line in the lattice package xyplot.
           panel.lines <- function(x, y) {
             panel.xyplot(x, y) # show points 
@@ -191,7 +194,20 @@ generate_output <- function(fileList){
           
           # Plots Time-Series Regression for a set using lattice graphics package
           trellis.device(device = "pdf", file = paste0(set_data$name[1], "-", current_set,"-regression.pdf"))
-          print(xyplot(data.long$Count ~ data.long$BaseCount | data.long$f2 * data.long$f1, as.table = TRUE, strips = TRUE, data = x, panel = panel.lines, scales=list(alternating=0), main = "Time Series Regressions", xlab = "Relative Abundance", ylab = "Labeling Time"))
+          print(useOuterStrips(xyplot(data.long$Count ~ data.long$BaseCount | data.long$f2 * data.long$f1,
+                                      as.table = TRUE, data = x, panel = panel.lines,
+                                      scales=list(alternating=0), 
+                                      main = list(label="Time Series Regressions", cex = 1.75),
+                                      xlab = list(label = "Relative Abundance", cex = 1.5), 
+                                      ylab = list(label="Labeling Time", cex = 1.5),
+                                      par.settings = standard.theme(color = FALSE), 
+                                      xlab.top = list(label="Channel \n(1 is unlabeled)", cex = 1.5),
+                                      ylab.right =list(label="Channel Relative Abundance", cex = 1.5, srt = -90)
+                                      ), 
+                               strip.left = strip.custom(bg = "white", style=1, horizontal = T), 
+                               strip = strip.custom(bg = "white")
+                               )
+                )
           dev.off()
           
           # Set directory for EICs
@@ -199,7 +215,19 @@ generate_output <- function(fileList){
           
           # Plots Time-Series EICs for a set using lattice graphics package
           trellis.device(device = "pdf", file = paste0(set_data$name[1], "-", current_set,"-eic.pdf"))
-          print(xyplot(data.long$Count ~ data.long$RT | data.long$f2 * data.long$f1, as.table = TRUE, strips = TRUE, data = x, scales=list(alternating=0), main = "EIC Plot", xlab = "RT", ylab = "Labeling Time"))
+          print(useOuterStrips(xyplot(data.long$Count ~ data.long$RT | data.long$f2 * data.long$f1, as.table = TRUE,
+                                      strips = TRUE, data = x, scales=list(alternating=0), 
+                                      main = list(label="EIC Plot", cex = 1.75),
+                                      xlab = list(label="RT", cex = 1.5),
+                                      ylab = list(label="Labeling Time", cex=1.5),
+                                      xlab.top = list(label="Channel \n(1 is unlabeled)", cex = 1.5),
+                                      ylab.right =list(label="Channel Relative Abundance", cex = 1.5, srt = -90),
+                                      par.settings = standard.theme(color = FALSE) 
+                                      ),
+                               strip.left = strip.custom(bg = "white", style=1, horizontal = T), 
+                               strip = strip.custom(bg = "white")
+                               )
+                )
           dev.off()
           
           # Sets directory back to input location
