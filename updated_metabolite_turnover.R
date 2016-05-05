@@ -359,7 +359,7 @@ write_regression_tables <- function(out, minimumRSquared){
 setwd(inputPath)
 
 # Read in csv from input_template.csv structured file. 
-inputValues <- read.csv(inputValuesPath, stringsAsFactors = FALSE)  # Currently all aminos minus the two that didn't have retention times.
+inputValues <- read.csv(inputValuesPath, stringsAsFactors = FALSE)
 
 # Gets file lists
 fileList <- setup_files(filesPath)
