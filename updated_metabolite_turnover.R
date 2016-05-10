@@ -178,8 +178,7 @@ generate_output <- function(fileList){
           # Sets Time and Label as factors for plotting
           x$data.long$f1 <- factor(x$data.long$TimePoint, labels = unique(x$data.long$TimePoint)) 
           x$data.long$f2 <- factor(x$data.long$Channel, labels = unique(x$data.long$Channel))
-          
-          browser()
+
           
           # Sets up pannel for graphing a linear regression line in the lattice package xyplot.
           panel.lines <- function(x, y) {
