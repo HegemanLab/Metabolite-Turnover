@@ -5,33 +5,34 @@ This script was developed for use in analyzing plant metabolomics. This particul
 
 ## Example output
 Each of the following files shows a portion of the output generated from originally running this script. Note the formatting of these output files may have been changed in the script, but the data presented is the same. These example output are not necessarily from the same files or times. 
-- bad_regression_example.pdf
-- EIC_example.pdf
-- Regression_example.pdf
+- bad_regression_example.svg
+- EIC_example.svg
+- Regression_example.svg
 - table_example.csv
 
 ## Usage Notes
 All lines that require editing are between line 25 and 55 in the script. 
 ### Lines that require editing:
 - 29: set your path to your data. This location should be where your input files are as well as your data files. 
-- 33, 36, 39, 43: File paths to folders where various output files will be sent.  
-- 44: A minimum R^2 value that determines which individual plots will be output as "bad regressions".
-- 48: Name of file holding filled in input data (data regarding compounds of interest and labels).
-- 51: Name of .csv file holding data regarding the files to be processed. 
+- 33, 36, 39, 46: File paths to folders where various output files will be sent.  
+- 42: A boolean value. Set to TRUE if you would like to generate plots of the bad regressions, or FALSE if you don't want to.
+- 47: A minimum R^2 value that determines which individual plots will be output as "bad regressions".
+- 51: Name of file holding filled in input data (data regarding compounds of interest and labels).
+- 54: Name of .csv file holding data regarding the files to be processed. 
 
 ### Workflow
 - Fill in Input_Data_Template.csv and files_template.csv.
-- Update file name's in script. 
+- Update file name's in script and set bad regression parameters. 
 - If needed, create output directories on your computer.
 - Update all file pathes and input file names. 
 - Install needed packages then run lines 15-19 to activate libraries.
-- Run 29-51 to set up input variables.
-- Run 64-352 to read in needed functions.
-- Run 359 set input directory
-- Run 362 to get data from input templates.
-- Run 365 to get file data
-- Run 368 to run full analysis and generate time-series plots. Depending on the number of files and compounds this may take quite some time.
-- (Optional) Run 371 to write the output data to csv files and to output bad regressions. 
+- Run 29-54 to set up input variables.
+- Run 64-370 to read in needed functions.
+- Run 378 set input directory
+- Run 381 to get data from input templates.
+- Run 384 to get file data
+- Run 387 to run full analysis and generate time-series plots. Depending on the number of files and compounds this may take quite some time.
+- (Optional) Run 390 to write the output data to csv files and to output bad regressions. 
 
 ## Script and Input Templates
 A brief description of each file in this repo and its role. 
