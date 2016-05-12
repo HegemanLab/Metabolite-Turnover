@@ -38,7 +38,10 @@ outputPathTime.SeriesEICs <- "C:/Users/Hegeman Lab/Desktop/Output/TimeSeries/EIC
 # Output location for the regression data on each amino acid/label combination for each file. Stored as .csv files
 outputPathRegressionTables <- "C:/Users/Hegeman Lab/Desktop/Output/TimeSeries/Tables"
 
-# Output location for bad amino acid/label regression. This will show regression plot as a pdf. A bad regression is 
+# Mark true if you would like the script to output graphs for "bad" regressions. If set to TRUE, see parameters below, else mark FALSE.
+badRegressions <- TRUE
+
+# Output location for bad amino acid/label regression. This will show regression plot as a svg. A bad regression is 
 # defined as one with an r-squared value less than the designated minimum r-squared value. 
 outputPathBadRegressions <- "C:/Users/Hegeman Lab/Desktop/Output/TimeSeries/Bad"
 minimumRSquared <- .96
@@ -141,7 +144,6 @@ generate_output <- function(fileList){
   
   # loops over each base amino from the input_template
   for(record in 1:length(inputValues[, 1])){
-    
     # Initialize set to make sure first loop executes
     current_set <- -1
     
@@ -160,11 +162,11 @@ generate_output <- function(fileList){
     rt <- c(rt.min, rt.max)*60
     
     # Iterates over each file
-    for(j in 1:length(fi)){
+    for(j in 1:(length(fi)+1)){
       
       # Checks if the loop has reached a new set or not
       # Note: This implementation means that sets must be grouped together when read in. ie all data from set one must be together in consecutive rows in csv.
-      if(sets[j] != current_set){
+      if(sets[j] != current_set | j  == length(fi)+1){
         
         # If this isn't the first time running through the loop.
         if (!is.empty(set_data)){
@@ -192,7 +194,7 @@ generate_output <- function(fileList){
           # eventually add in xlab.top, ylab.right. Look at panel labels or strip labels for formatting. 
           
           # Plots Time-Series Regression for a set using lattice graphics package
-          trellis.device(device = "pdf", file = paste0(set_data$name[1], "-", current_set,"-regression.pdf"))
+          trellis.device(device = "svg", file = paste0(set_data$name[1], "-", current_set,"-regression.svg"))
           print(useOuterStrips(xyplot(data.long$Count ~ data.long$BaseCount | data.long$f2 * data.long$f1,
                                       as.table = TRUE, data = x, panel = panel.lines,
                                       scales=list(alternating=0), 
@@ -213,7 +215,7 @@ generate_output <- function(fileList){
           setwd(outputPathTime.SeriesEICs)
           
           # Plots Time-Series EICs for a set using lattice graphics package
-          trellis.device(device = "pdf", file = paste0(set_data$name[1], "-", current_set,"-eic.pdf"))
+          trellis.device(device = "svg", file = paste0(set_data$name[1], "-", current_set,"-eic.svg"))
           print(useOuterStrips(xyplot(data.long$Count ~ data.long$RT | data.long$f2 * data.long$f1, as.table = TRUE,
                                       strips = TRUE, data = x, scales=list(alternating=0), 
                                       main = list(label="EIC Plot", cex = 1.75),
@@ -240,36 +242,39 @@ generate_output <- function(fileList){
         set_data <- data.frame()
       }
       
-      ## This script will likely be slow because it will recreate all the xcmsraws. Future updates may address this.
-      # Get EIC data for input into relAbFromCounts function
-      out <- read_EIC(fi[j], n_mz[["mz"]], mz.tol, rt) 
-      
-      # Gets relative abundance data and appends a time value to it
-      relAb <- relAbFromCounts(out$intensity, out$channel, out$scan, norm_channel=1)
-      relAb.data <- relAb$data.long
-      relAb.data$time <- rep(times[j], length(relAb.data[,1]))
-      
-      # Assigns names. Future updates may do this more elegantly.
-      # for each row (record) in relAb.data
-      for(x in 1:length(relAb.data[, 1])){
+      # This part of the script will likely be slow because it will recreate all the xcmsraws. Future updates may address this.
+      # if not at the end of files Get EIC data for input into relAbFromCounts function
+      if(j != (length(fi)+1)){
+        out <- read_EIC(fi[j], n_mz[["mz"]], mz.tol, rt) 
         
-        # if it's the base channel, give it the base amino name
-        if(relAb.data[x, "Channel"] == 1){
-          relAb.data$name[x] <- inputValues[record, "name"]
+        # Gets relative abundance data and appends a time value to it
+        relAb <- relAbFromCounts(out$intensity, out$channel, out$scan, norm_channel=1)
+        relAb.data <- relAb$data.long
+        relAb.data$time <- rep(times[j], length(relAb.data[,1]))
+        
+        # Assigns names. Future updates may do this more elegantly.
+        # for each row (record) in relAb.data
+        for(x in 1:length(relAb.data[, 1])){
+          
+          # if it's the base channel, give it the base amino name
+          if(relAb.data[x, "Channel"] == 1){
+            relAb.data$name[x] <- inputValues[record, "name"]
+          }
+          
+          # else generate a name based on the label
+          else{
+            relAb.data$name[x] <- paste0(name, "+", as.character(relAb.data$Channel[x] - 1), label)
+          }
         }
         
-        # else generate a name based on the label
-        else{
-          relAb.data$name[x] <- paste0(name, "+", as.character(relAb.data$Channel[x] - 1), label)
-        }
+        # Append filenames and base amino to the data for future use
+        relAb.data$fileName <- rep(fi[j], length(relAb.data[,1]))
+        relAb.data$unlabeledAmino <- rep(name, length(relAb.data[, 1]))
+        relAb.data$set <- rep(current_set, nrow(relAb.data))
+        
+        # bind the data from each time together
+        set_data <- rbind(set_data, relAb.data)
       }
-      
-      # Append filenames and base amino to the data for future use
-      relAb.data$fileName <- rep(fi[j], length(relAb.data[,1]))
-      relAb.data$unlabeledAmino <- rep(name, length(relAb.data[, 1]))
-      
-      # bind the data from each time together
-      set_data <- rbind(set_data, relAb.data)
     }
   }
   
@@ -278,73 +283,91 @@ generate_output <- function(fileList){
 }
 
 # Takes in data generated by generate_output and writes csvs of the regression data for each file for each amino. 
-# Also generates individual regression plots for each pairing of unlabeled and labeled amino below the minimumRSquared. 
-write_regression_tables <- function(out, minimumRSquared){
+# Also generates individual regression plots for each pairing of unlabeled and labeled amino below the minimumRSquared if badREgression set to True. 
+# default minimum R-Squared value is .96. 
+write_regression_tables <- function(out, minimumRSquared=.96, badRegressions=FALSE){
   
-  # Iterate over every unique file name in the out data. 
-  for (file in unique.default(out$fileName)){
-    
-    # Get all data pertaining to the current file
-    subsetter <- out$fileName == file
+  for(s in unique.default(out$set)){
+    # Iterate over every unique file name in the out data.
+    subsetter <- out$set == s
     outSubset <- out[subsetter, ]
     
-    # iterates over every amino acid from input template
-    for(amino in inputValues[, 1]){
+    # Creates a dataframe to store output
+    fileOutput <- data.frame()
+    
+    for (file in unique.default(out$fileName)){
       
-      # Get all data pertaining to the current amino
-      aminoSubsetter <- outSubset$unlabeledAmino == amino
-      aminoSubset <- outSubset[aminoSubsetter, ]
+      # Get all data pertaining to the current file
+      subsetter <- outSubset$fileName == file
+      fileSubset <- outSubset[subsetter, ]
       
-      # Creates a dataframe to store output
-      fileOutput <- data.frame()
-      
-      # gets base amino values (non labeled)
-      b <- aminoSubset$Channel== 1
-      base <- aminoSubset[b, ]
-      
-      # Loop through for non bases
-      for(c in 2:max(aminoSubset$Channel)){
+      # iterates over every amino acid from input template
+      for(amino in inputValues[, 1]){
         
-        # Gets data pertaining to current label
-        channelMatch <- aminoSubset$Channel == c
-        labeled <- aminoSubset[channelMatch, ]
-       
-        # generates regression model and stores slope and r-squared values
-        reg <- lm(labeled$Count ~ base$Count) 
-        regSlope <- reg$coefficients[[2]]
-        rSquared <- summary(reg)$r.squared
+        # Get all data pertaining to the current amino
+        aminoSubsetter <- fileSubset$unlabeledAmino == amino
+        aminoSubset <- fileSubset[aminoSubsetter, ]
         
-        # checks if regression meets minimum r-squared value. If regression is bad, plots it and saves the plot.
-        if(rSquared < minimumRSquared || is.na(rSquared)){
+        # gets base amino values (non labeled)
+        b <- aminoSubset$Channel== 1
+        base <- aminoSubset[b, ]
+
+        # make list of labeled channels        
+        channels <- unique.default(aminoSubset$Channel)
+        channels <- channels[-1]
+
+        # Loop through for non bases
+        for(c in channels){
           
-          # Sets working directory to correct location
-          setwd(outputPathBadRegressions)
+          # Gets data pertaining to current label
+          channelMatch <- aminoSubset$Channel == c
+          labeled <- aminoSubset[channelMatch, ]
           
-          # Plot and save regression
-          pdf(paste(substr(file, 1, nchar(file)-6), "-", amino, "vs", as.character(labeled[1, "name"]), ".pdf", sep = ""))
-          plot(base$Count, labeled$Count, xlab =  amino, ylab = as.character(labeled[1, "name"]), main = "Unlabeled vs Labeled")
+          # generates regression model and stores slope and r-squared values
+          reg <- lm(labeled$Count ~ base$Count) 
+          regSlope <- reg$coefficients[[2]]
+          rSquared <- summary(reg)$r.squared
           
-          # Script crashes if not enough points are detected to generate a regression line so try statement used. 
-          try(abline(reg))
+          # checks if regression meets minimum r-squared value. If regression is bad, plots it and saves the plot.
+          if((rSquared < minimumRSquared || is.na(rSquared)) & badRegressions){
+            
+            # Sets working directory to correct location
+            setwd(outputPathBadRegressions)
+            
+            # Plot and save regression
+            svg(paste(substr(file, 1, nchar(file)-6), "-", amino, "vs", as.character(labeled[1, "name"]), ".svg", sep = ""))
+            plot(base$Count, labeled$Count, xlab =  amino, ylab = as.character(labeled[1, "name"]), main = "Unlabeled vs Labeled")
+            
+            # Script crashes if not enough points are detected to generate a regression line so try statement used. 
+            try(abline(reg))
+            
+            # End saving to svg
+            dev.off()
+            
+            # Resets input to desired path
+            setwd(inputPath)
+          }
           
-          # End saving to pdf
-          dev.off()
-          
-          # Resets input to desired path
-          setwd(inputPath)
+          # Add amino vs label data to overall file data
+          fileOutput <- rbind(fileOutput, data.frame(file, base$name[[1]], labeled$name[[1]], rSquared, regSlope, labeled$set[[1]], labeled$time[[1]], stringsAsFactors = FALSE))
         }
-        
-        # Add amino vs label data to overall file data
-        fileOutput <- rbind(fileOutput, data.frame(file, base$name[[1]], labeled$name[[1]], rSquared, regSlope, stringsAsFactors = FALSE))
       }
-      
-      # Format output data so it has column names and then write it to a csv
-      setwd(outputPathRegressionTables)
-      colnames(fileOutput) <- c("file_name", "base", "label", "r2", "slope")
-      file_name <- paste0(substr(file, 1, nchar(file)-6), "-", amino, ".csv")
-      write.csv(fileOutput ,file = file_name, row.names = FALSE)
-      setwd(inputPath)
     }
+    
+    # set wd to location for regressions
+    setwd(outputPathRegressionTables)
+    
+    # write the table for each amino for each set
+    for(a in unique.default(fileOutput$base.name..1..)){
+      tableData <- fileOutput[fileOutput$base.name..1.. == a, ]
+      colnames(tableData) <- c("File", "Base Amino", "Label Name", "R-Squared", "Regression Slope", "Set", "Time")
+      file_name <- paste0(tableData[1, "Base Amino"], "-", tableData[1, "Set"], ".csv")
+      write.csv(tableData ,file = file_name, row.names = FALSE)
+    }
+    
+    # Set wd back to input location
+    setwd(inputPath)
+    
   }
 }
 
@@ -367,7 +390,7 @@ fileList <- setup_files(filesPath)
 out <- generate_output(fileList)
 
 # Generate regression tables and bad regression plots. 
-write_regression_tables(out, minimumRSquared)
+write_regression_tables(out, minimumRSquared = minimumRSquared, badRegressions = badRegressions)
 
 # Note: Error in int_abline(a = a, b = b, h = h, v = v, untf = untf, ...) : 
 #         'a' and 'b' must be finite
