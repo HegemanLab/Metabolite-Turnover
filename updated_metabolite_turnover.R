@@ -55,9 +55,6 @@ filesPath <- "files_template.csv"
 # Command line trick to generate files list in same folder as data -
 # Navagate to the folder with the mzXML or mzML files of interest and enter the following command:
 # dir *.mzXML /b > files.txt
-
-
-
 ##############################################################################################################
 # Generate Needed Functions - This creates all the needed functions. Run everything in this section.
 ##############################################################################################################
