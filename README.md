@@ -47,4 +47,4 @@ Input template that holds all input data about the compounds that are being anal
 Template of how information about the files should be entered and example data of how information should be entered. Each set must be listed together although not neccessarily in time order. Example data should be replaced with your own data but column names should remain unchanged. 
 
 ## Hegeman Lab - University of Minnesota Twin-Cities
-This code was developed for use in the Hegeman Lab at the University of Minnesota Twin-Cities. If you use this script in your research, please don't forget to site us. Additionally, if there are any questions about how to use this code, feel free to contact [Adrian Hegeman](hegem007@umn.edu). 
+This code was developed for use in the Hegeman Lab at the University of Minnesota Twin-Cities. If you use this script in your research, please don't forget to acknowledge or cite publication. Additionally, if there are any questions about how to use this code, feel free to contact [Adrian Hegeman](mailto:hegem007@umn.edu). 
